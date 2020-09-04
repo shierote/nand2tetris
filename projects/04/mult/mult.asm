@@ -7,31 +7,31 @@
 // (R0, R1, R2 refer to RAM[0], RAM[1], and RAM[2], respectively.)
 
 // Put your code here.
-  @2
-  M=0 // RESULT, Initialize
+  @R2
+  M=0 // RESULT, R2を0で初期化
 
-  @0 // if R0 == 0, END
-  @END
+  @R0 // if R0 == 0, END
   D=M
+  @END
   D;JEQ
 
-  @1 // if R1 == 0, END
-  @END
+  @R1 // if R1 == 0, END
   D=M
+  @END
   D;JEQ
 
 (LOOP)
-  @1
+  @R1
   D=M
   @END
-  D;JGT
+  D;JEQ
 
-  @0
+  @R0
   D=M
-  @2
+  @R2
   M=D+M
 
-  @1
+  @R1
   M=M-1
   @LOOP
   0;JMP
