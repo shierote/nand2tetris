@@ -34,10 +34,52 @@ CHIP CPU {
                          // the current program (reset==0).
 
     OUT outM[16],        // M value output
-        writeM,          // Write to M? 
+        writeM,          // Write to M?
         addressM[15],    // Address in data memory (of M)
         pc[15];          // address of next instruction
 
     PARTS:
-    // Put your code here:
+    // instruction[15]: A命令 / C命令
+    // instruction[0..14]: A命令の場合: 15bit value
+    // instruction[12]: C命令の場合: a(Aを使うか, Mを使うか)
+    // instruction[6..11]: C命令の場合: c1, c2, c3, c4, c5, c6: comp
+    // instruction[3..5]: C命令の場合: d1, d2, d3: dest
+    // instruction[0..2]: C命令の場合: j1, j2, j3: jump
+
+    // A命令か, C命令かのdecode
+    Or(a=instruction[15], b=instruction[15], out=is-instruction-c);
+    Not(in=is-instruction-c, out=is-instruction-a);
+
+    // A命令, C命令の分岐
+    Mux16(a=instruction, b=alu-out, sel=is-instruction-c, out=inA); //なぜC命令だとalu-outを使うか?
+
+    // Aにデータを入れるか
+    Or(a=instruction[5], b=is-instruction-a, out=loadA);
+    ARegister(in=inA, load=loadA, out=outA, out[0..14]=addressM);
+
+    // Dにデータを入れるか
+    And(a=instruction[4], b=is-instruction-c, out=loadD);
+    DRegister(in=alu-out, load=loadD, out=outD);
+
+    // Aを使うか, Mを使うか(A/C命令判定を入れていないけど入れた方が良いのか..？)
+    Mux16(a=outA, b=inM, sel=instruction[12], out=outA-M);
+
+    ALU(x=outD, y=outA-M, zx=instruction[11], nx=instruction[10], zy=instruction[9], ny=instruction[8], f=instruction[7], no=instruction[6], out=alu-out, out=outM, zr=alu-zr, ng=alu-ng);
+
+    // Mに書き込みを行うか
+    And(a=instruction[3], b=is-instruction-c, out=writeM);
+
+    // PC判定
+    Not(in=alu-zr, out=is-not-zero);
+    Not(in=alu-ng, out=is-not-minus);
+    And(a=is-not-zero, b=is-not-minus, out=is-plus);
+
+    And(a=alu-ng, b=instruction[2], out=is-jump-j1);
+    And(a=alu-zr, b=instruction[1], out=is-jump-j2);
+    And(a=is-plus, b=instruction[0], out=is-jump-j3);
+
+    Or8Way(in[0]=is-jump-j1, in[1]=is-jump-j2, in[2]=is-jump-j3, out=can-jump-sub);
+    And(a=can-jump-sub, b=is-instruction-c, out=can-jump); // C命令の時jump
+
+    PC(in=outA, load=can-jump, inc=true, reset=reset, out[0..14]=pc);
 }
